@@ -47,5 +47,3 @@ class TaskDiff(BaseModel):
 ObjectDiff.update_forward_refs()
 JobDiff.update_forward_refs()
 TaskGroupDiff.update_forward_refs()
-
-
