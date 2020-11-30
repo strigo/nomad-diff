@@ -1,0 +1,53 @@
+version: 2
+workflows:
+  version: 2
+  test:
+    jobs:
+      - test-3.7
+      - test-pylint
+      - test-pytype
+      - test-black
+
+jobs:
+  test-3.7: &test-template
+    docker:
+      - image: cimg/python:3.7
+    environment:
+      - TOX_ENV: py37
+    working_directory: ~/work
+    steps:
+      - checkout
+      - run:
+          name: Install test requirements
+          command: |
+            python3 -m venv .venv
+            . .venv/bin/activate
+            pip install -r dev-requirements.txt
+      - restore_cache:
+          keys:
+          - v4-dependencies-{{ checksum "setup.py" }}-{{ checksum "dev-requirements.txt" }}
+          - v4-dependencies-
+      - run:
+          name: Run tests
+          command: |
+            . .venv/bin/activate
+            make testone TOX_ENV=$TOX_ENV
+      - save_cache:
+          paths:
+            - .tox/$TOX_ENV
+          key: v4-dependencies-{{ checksum "setup.py" }}-{{ checksum "dev-requirements.txt" }}
+
+  test-pylint:
+    <<: *test-template
+    environment:
+      - TOX_ENV: pylint
+
+  test-pytype:
+    <<: *test-template
+    environment:
+      - TOX_ENV: pytype
+
+  test-black:
+    <<: *test-template
+    environment:
+      - TOX_ENV: black

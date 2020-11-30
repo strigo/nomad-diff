@@ -190,11 +190,12 @@ def get_longest_prefixes(fields: Optional[List[FieldDiff]], objects: Optional[Li
 
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L555
 def aligned_field_and_objects(
-        fields: Optional[List[FieldDiff]],
-        objects: Optional[List[ObjectDiff]],
-        start_prefix: int,
-        longest_field: int,
-        longest_marker: int) -> str:
+    fields: Optional[List[FieldDiff]],
+    objects: Optional[List[ObjectDiff]],
+    start_prefix: int,
+    longest_field: int,
+    longest_marker: int,
+) -> str:
 
     if fields is None:
         fields = []
@@ -213,7 +214,7 @@ def aligned_field_and_objects(
         out += format_field_diff(field, start_prefix, kPrefix, vPrefix)
 
         # Avoid a dangling new line
-        if i+1 != num_fields or have_objects:
+        if i + 1 != num_fields or have_objects:
             out += "\n"
 
     for i, object in enumerate(objects):
@@ -222,7 +223,7 @@ def aligned_field_and_objects(
         out += format_object_diff(object, start_prefix, kPrefix)
 
         # Avoid a dangling new line
-        if i+1 != num_objects:
+        if i + 1 != num_objects:
             out += "\n"
 
     return out

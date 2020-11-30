@@ -10,7 +10,7 @@ COLORS = {
     '[yellow]': Fore.YELLOW,
     '[light_yellow]': Fore.LIGHTYELLOW_EX,
     '[bold]': Style.BRIGHT,
-    '[reset]': Style.RESET_ALL
+    '[reset]': Style.RESET_ALL,
 }
 
 
