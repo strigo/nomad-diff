@@ -1,6 +1,17 @@
 from typing import List, Optional, Tuple
+
 from .models import JobDiff, TaskGroupDiff, FieldDiff, ObjectDiff, TaskDiff
 
+
+COLOR_UPDATE_TYPE_MAPPING = {
+    "ignore": '[green]',
+    "create": '[green]',
+    "destroy": '[red]',
+    "migrate": '[blue]',
+    "in-place update": '[cyan]',
+    "create/destroy update": '[yellow]',
+    "canary": '[light_yellow]',
+}
 
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L371
 def format_job_diff(job: JobDiff, verbose: bool) -> str:
@@ -10,54 +21,41 @@ def format_job_diff(job: JobDiff, verbose: bool) -> str:
     # Determine the longest markers and fields so that the output can be
     # properly aligned.
     longest_field, longest_marker = get_longest_prefixes(job.Fields, job.Objects)
-    for tg in job.TaskGroups or []:
-        _, l = get_diff_string(tg.Type)
-        if l > longest_marker:
-            longest_marker = l
+    for task_group in job.TaskGroups or []:
+        _, diff_string = get_diff_string(task_group.Type)
+        if diff_string > longest_marker:
+            longest_marker = diff_string
 
     # Only show the job's field and object diffs if the job is edited or
     # verbose mode is set.
     if job.Type == "Edited" or verbose:
-        fo = aligned_field_and_objects(job.Fields, job.Objects, 0, longest_field, longest_marker)
-        out += fo
-        if len(fo) > 0:
+        aligned = aligned_field_and_objects(job.Fields, job.Objects, 0, longest_field, longest_marker)
+        out += aligned
+        if len(aligned) > 0:
             out += "\n"
 
     # Print the task groups
-    for tg in job.TaskGroups or []:
-        _, mLength = get_diff_string(tg.Type)
-        kPrefix = longest_marker - mLength
-        out += f'{format_task_group_diff(tg, kPrefix, verbose)}\n'
+    for task_group in job.TaskGroups or []:
+        _, market_length = get_diff_string(task_group.Type)
+        key_prefix = longest_marker - market_length
+        out += f'{format_task_group_diff(task_group, key_prefix, verbose)}\n'
 
     return out
 
 
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L408
-def format_task_group_diff(tg: TaskGroupDiff, tg_prefix: int, verbose: bool) -> str:
-    marker, _ = get_diff_string(tg.Type)
-    out = f'{marker}{" " * tg_prefix}[bold]Task Group: "{tg.Name}"[reset]'
+def format_task_group_diff(task_group: TaskGroupDiff, task_group_prefix: int, verbose: bool) -> str:
+    marker, _ = get_diff_string(task_group.Type)
+    out = f'{marker}{" " * task_group_prefix}[bold]Task Group: "{task_group.Name}"[reset]'
 
-    if tg.Updates:
-        order = list(tg.Updates.keys())
+    if task_group.Updates:
+        order = list(task_group.Updates.keys())
         order.sort()
 
         updates = []
         for update_type in order:
-            count = tg.Updates[update_type]
-            color = ""
-
-            if update_type == "ignore" or update_type == "create":
-                color = "[green]"
-            elif update_type == "destroy":
-                color = "[red]"
-            elif update_type == "migrate":
-                color = "[blue]"
-            elif update_type == "in-place update":
-                color = "[cyan]"
-            elif update_type == "create/destroy update":
-                color = "[yellow]"
-            elif update_type == "canary":
-                color = "[light_yellow]"
+            count = task_group.Updates[update_type]
+            color = COLOR_UPDATE_TYPE_MAPPING.get(update_type, "")
 
             updates.append(f'[reset]{color}{count} {update_type}')
         out += f' ({", ".join(updates)}[reset])\n'
@@ -66,47 +64,50 @@ def format_task_group_diff(tg: TaskGroupDiff, tg_prefix: int, verbose: bool) -> 
 
     # Determine the longest field and markers so the output is properly
     # aligned
-    longest_field, longest_marker = get_longest_prefixes(tg.Fields, tg.Objects)
-    for task in tg.Tasks or []:
-        _, l = get_diff_string(task.Type)
-        if l > longest_marker:
-            longest_marker = l
+    longest_field, longest_marker = get_longest_prefixes(task_group.Fields, task_group.Objects)
+    for task in task_group.Tasks or []:
+        _, diff_string = get_diff_string(task.Type)
+        if diff_string > longest_marker:
+            longest_marker = diff_string
 
     # Only show the task groups's field and object diffs if the group is edited or
     # verbose mode is set.
-    sub_start_prefix = tg_prefix + 2
-    if tg.Type == "Edited" or verbose:
-        fo = aligned_field_and_objects(tg.Fields, tg.Objects, sub_start_prefix, longest_field, longest_marker)
-        out += fo
-        if len(fo) > 0:
+    sub_start_prefix = task_group_prefix + 2
+    if task_group.Type == "Edited" or verbose:
+        aligned = aligned_field_and_objects(
+            task_group.Fields, task_group.Objects, sub_start_prefix, longest_field, longest_marker
+        )
+        out += aligned
+        if len(aligned) > 0:
             out += "\n"
 
     # Output the tasks
-    for task in tg.Tasks or []:
-        _, mLength = get_diff_string(task.Type)
-        prefix = longest_marker - mLength
+    for task in task_group.Tasks or []:
+        _, market_length = get_diff_string(task.Type)
+        prefix = longest_marker - market_length
         out += f'{format_task_diff(task, sub_start_prefix, prefix, verbose)}'
 
     return out
 
 
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L481
-def format_task_diff(task: TaskDiff, startPrefix: int, taskPrefix: int, verbose: bool) -> str:
+def format_task_diff(task: TaskDiff, start_prefix: int, task_prefix: int, verbose: bool) -> str:
     marker, _ = get_diff_string(task.Type)
-    out = f'{" " * startPrefix}{marker}{" " * taskPrefix}[bold]Task: "{task.Name}"'
+    out = f'{" " * start_prefix}{marker}{" " * task_prefix}[bold]Task: "{task.Name}"'
 
     if task.Annotations:
         out += f' [reset]({color_annotations(task.Annotations)})'
 
+    # Exit early if the job was not edited and it isn't verbose output
     if task.Type == "None":
         return out
-    elif task.Type in ("Deleted", "Added") and not verbose:
-        # Exit early if the job was not edited and it isn't verbose output
-        return out
-    else:
-        out += "\n"
 
-    sub_start_prefix = startPrefix + 2
+    if task.Type in ("Deleted", "Added") and not verbose:
+        return out
+
+    out += "\n"
+
+    sub_start_prefix = start_prefix + 2
     longest_field, longest_marker = get_longest_prefixes(task.Fields, task.Objects)
     out += aligned_field_and_objects(task.Fields, task.Objects, sub_start_prefix, longest_field, longest_marker)
 
@@ -116,7 +117,7 @@ def format_task_diff(task: TaskDiff, startPrefix: int, taskPrefix: int, verbose:
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L507
 def format_object_diff(diff: ObjectDiff, start_prefix: int, key_prefix: int) -> str:
     start = " " * start_prefix
-    marker, markerLen = get_diff_string(diff.Type)
+    marker, market_length = get_diff_string(diff.Type)
     out = f'{start}{marker}{" " * key_prefix}{diff.Name} {{\n'
 
     # Determine the length of the longest name and longest diff marker to
@@ -125,7 +126,7 @@ def format_object_diff(diff: ObjectDiff, start_prefix: int, key_prefix: int) -> 
     sub_start_prefix = start_prefix + key_prefix + 2
     out += aligned_field_and_objects(diff.Fields, diff.Objects, sub_start_prefix, longest_field, longest_marker)
 
-    endprefix = " " * (start_prefix + markerLen + key_prefix)
+    endprefix = " " * (start_prefix + market_length + key_prefix)
     return f'{out}\n{endprefix}}}'
 
 
@@ -153,13 +154,15 @@ def format_field_diff(diff: FieldDiff, start_prefix: int, key_prefix: int, value
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L609
 def get_diff_string(diff_type: str) -> Tuple[str, int]:
     if diff_type == "Added":
-        return f"[green]+[reset] ", 2
-    elif diff_type == "Deleted":
-        return f"[red]-[reset] ", 2
-    elif diff_type == "Edited":
-        return f"[light_yellow]+/-[reset] ", 4
-    else:
-        return "", 0
+        return "[green]+[reset] ", 2
+
+    if diff_type == "Deleted":
+        return "[red]-[reset] ", 2
+
+    if diff_type == "Edited":
+        return "[light_yellow]+/-[reset] ", 4
+
+    return "", 0
 
 
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L590
@@ -172,18 +175,18 @@ def get_longest_prefixes(fields: Optional[List[FieldDiff]], objects: Optional[Li
     longest_field = longest_marker = 0
 
     for field in fields:
-        l = len(field.Name)
-        if l > longest_field:
-            longest_field = l
+        length = len(field.Name)
+        if length > longest_field:
+            longest_field = length
 
-        _, l = get_diff_string(field.Type)
-        if l > longest_marker:
-            longest_marker = l
+        _, length = get_diff_string(field.Type)
+        if length > longest_marker:
+            longest_marker = length
 
     for obj in objects:
-        _, l = get_diff_string(obj.Type)
-        if l > longest_marker:
-            longest_marker = l
+        _, length = get_diff_string(obj.Type)
+        if length > longest_marker:
+            longest_marker = length
 
     return longest_field, longest_marker
 
@@ -208,19 +211,19 @@ def aligned_field_and_objects(
     have_objects = num_objects != 0
 
     for i, field in enumerate(fields):
-        _, mLength = get_diff_string(field.Type)
-        kPrefix = longest_marker - mLength
-        vPrefix = longest_field - len(field.Name)
-        out += format_field_diff(field, start_prefix, kPrefix, vPrefix)
+        _, market_length = get_diff_string(field.Type)
+        key_prefix = longest_marker - market_length
+        value_prefix = longest_field - len(field.Name)
+        out += format_field_diff(field, start_prefix, key_prefix, value_prefix)
 
         # Avoid a dangling new line
         if i + 1 != num_fields or have_objects:
             out += "\n"
 
-    for i, object in enumerate(objects):
-        _, mLength = get_diff_string(object.Type)
-        kPrefix = longest_marker - mLength
-        out += format_object_diff(object, start_prefix, kPrefix)
+    for i, obj in enumerate(objects):
+        _, market_length = get_diff_string(obj.Type)
+        key_prefix = longest_marker - market_length
+        out += format_object_diff(obj, start_prefix, key_prefix)
 
         # Avoid a dangling new line
         if i + 1 != num_objects:
