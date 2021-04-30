@@ -1,5 +1,6 @@
-from .diff import format_job_diff, JobDiff
 from colorama import Fore, Style  # type: ignore
+
+from .diff import format_job_diff, JobDiff
 
 
 COLORS = {
@@ -14,7 +15,9 @@ COLORS = {
 }
 
 
-def format(diff: dict, colors: bool, verbose: bool):
+# Note that the pylint check below should not be disabled. We could potentially simply change it,
+# but it would mean changing things in wand. Let's start from working around this.
+def format(diff: dict, colors: bool, verbose: bool):  # pylint: disable= redefined-builtin
     diff_dict = JobDiff(**diff)
     out = format_job_diff(diff_dict, verbose)
 
@@ -25,14 +28,14 @@ def format(diff: dict, colors: bool, verbose: bool):
 
 
 def strip_colors(diff: str):
-    for e in COLORS.keys():
+    for e in COLORS:
         diff = diff.replace(e, '')
 
     return diff
 
 
 def colorize(diff: str):
-    for p, color in COLORS.items():
-        diff = diff.replace(p, color)
+    for diff_color, real_color in COLORS.items():
+        diff = diff.replace(diff_color, real_color)
 
     return diff

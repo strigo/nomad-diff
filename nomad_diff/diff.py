@@ -1,6 +1,21 @@
+# pylint: disable=invalid-name
+# The above is disabled in favor of keeping this file in line with the original diff code at:
+# https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L371
+
+
 from typing import List, Optional, Tuple
 from .models import JobDiff, TaskGroupDiff, FieldDiff, ObjectDiff, TaskDiff
 
+
+COLOR_UPDATE_TYPE_MAPPING = {
+    "ignore": '[green]',
+    "create": '[green]',
+    "destroy": '[red]',
+    "migrate": '[blue]',
+    "in-place update": '[cyan]',
+    "create/destroy update": '[yellow]',
+    "canary": '[light_yellow]',
+}
 
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L371
 def format_job_diff(job: JobDiff, verbose: bool) -> str:
@@ -44,20 +59,7 @@ def format_task_group_diff(tg: TaskGroupDiff, tg_prefix: int, verbose: bool) -> 
         updates = []
         for update_type in order:
             count = tg.Updates[update_type]
-            color = ""
-
-            if update_type == "ignore" or update_type == "create":
-                color = "[green]"
-            elif update_type == "destroy":
-                color = "[red]"
-            elif update_type == "migrate":
-                color = "[blue]"
-            elif update_type == "in-place update":
-                color = "[cyan]"
-            elif update_type == "create/destroy update":
-                color = "[yellow]"
-            elif update_type == "canary":
-                color = "[light_yellow]"
+            color = COLOR_UPDATE_TYPE_MAPPING.get(update_type, "")
 
             updates.append(f'[reset]{color}{count} {update_type}')
         out += f' ({", ".join(updates)}[reset])\n'
@@ -100,11 +102,11 @@ def format_task_diff(task: TaskDiff, startPrefix: int, taskPrefix: int, verbose:
 
     if task.Type == "None":
         return out
-    elif task.Type in ("Deleted", "Added") and not verbose:
+    if task.Type in ("Deleted", "Added") and not verbose:
         # Exit early if the job was not edited and it isn't verbose output
         return out
-    else:
-        out += "\n"
+
+    out += "\n"
 
     sub_start_prefix = startPrefix + 2
     longest_field, longest_marker = get_longest_prefixes(task.Fields, task.Objects)
@@ -153,13 +155,12 @@ def format_field_diff(diff: FieldDiff, start_prefix: int, key_prefix: int, value
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L609
 def get_diff_string(diff_type: str) -> Tuple[str, int]:
     if diff_type == "Added":
-        return f"[green]+[reset] ", 2
-    elif diff_type == "Deleted":
-        return f"[red]-[reset] ", 2
-    elif diff_type == "Edited":
-        return f"[light_yellow]+/-[reset] ", 4
-    else:
-        return "", 0
+        return "[green]+[reset] ", 2
+    if diff_type == "Deleted":
+        return "[red]-[reset] ", 2
+    if diff_type == "Edited":
+        return "[light_yellow]+/-[reset] ", 4
+    return "", 0
 
 
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L590
@@ -217,7 +218,7 @@ def aligned_field_and_objects(
         if i + 1 != num_fields or have_objects:
             out += "\n"
 
-    for i, object in enumerate(objects):
+    for i, object in enumerate(objects):  # pylint: disable=redefined-builtin
         _, mLength = get_diff_string(object.Type)
         kPrefix = longest_marker - mLength
         out += format_object_diff(object, start_prefix, kPrefix)

@@ -1,7 +1,10 @@
+# pylint: disable=too-few-public-methods
+
 from __future__ import annotations
 from typing import List, Optional, Dict
 
-from pydantic import BaseModel
+# BaseModel actually _does_ exist.
+from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
 
 class JobDiff(BaseModel):
