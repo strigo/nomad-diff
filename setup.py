@@ -10,8 +10,8 @@ setup(
     url='https://github.com/strigo/nomad-diff',
     packages=['nomad_diff'],
     install_requires=[
-        'pydantic~=1.6.1',
-        'colorama~=0.4.3',
+        'pydantic~=1.8.1',
+        'colorama~=0.4.4',
     ],
     include_package_data=True,
     license='MIT',
