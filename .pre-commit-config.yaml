@@ -16,7 +16,7 @@ repos:
     types: [python]
   - id: mypy
     name: mypy
-    entry: mypy
+    entry: mypy nomad_diff
     language: python
     require_serial: true
     types: [python]
