@@ -2,7 +2,6 @@
 # The above is disabled in favor of keeping this file in line with the original diff code at:
 # https://github.com/hashicorp/nomad/blob/v0.12.3/command/job_plan.go#L371
 
-
 from typing import List, Optional, Tuple
 from .models import JobDiff, TaskGroupDiff, FieldDiff, ObjectDiff, TaskDiff
 
